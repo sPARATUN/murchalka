@@ -234,7 +234,9 @@ svg { flex: none; }
 .hero-body .hero-meta { display: flex; align-items: center; gap: 10px; margin-block: 10px 12px; font-size: .82rem; color: var(--ink-2); }
 .hero-meta .meter { flex: 1; min-inline-size: 40px; }
 .hero-body .btn { display: inline-flex; min-block-size: 44px; padding-inline: 1.2rem; }
-html.reading { overflow: hidden; }
+/* пока открыта книга, жесты на её шапке и полях не прокручивают полку под ней */
+#reader .r-bar-top, #reader .r-info, #reader .tips { touch-action: none; }
+#reader { box-shadow: 0 -18px 40px -12px rgb(0 0 0 / .25); }
 
 /* --- сетка книжек --- */
 .shelf h2 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 16px; font-size: 1.25rem; font-weight: 850; }
@@ -383,7 +385,6 @@ html.reading { overflow: hidden; }
   font-family: var(--rfont);
   font-size: var(--fs);
   line-height: var(--lh);
-  will-change: transform;
 }
 
 .r-info {
@@ -808,8 +809,11 @@ dialog.see-through .sheet-panel { max-block-size: 66dvh; box-shadow: 0 -12px 40p
 
 /* тень бегущей страницы и след лапки */
 .shade {
-  position: absolute; top: 0; bottom: 0; left: 0; inline-size: 34%;
-  pointer-events: none; opacity: 0; will-change: transform, opacity;
+  /* лежит поверх pager (не внутри, чтобы не прокручиваться вместе со страницей) */
+  position: absolute; left: var(--sal);
+  top: calc(var(--sat) + 34px); bottom: calc(var(--sab) + 34px);
+  inline-size: calc((100% - var(--sal) - var(--sar)) * .34);
+  pointer-events: none; opacity: 0;
   background: linear-gradient(90deg, transparent, rgb(90 45 25 / .07) 60%, rgb(90 45 25 / .16) 90%, transparent);
 }
 :root[data-theme="night"] .shade, :root[data-theme="black"] .shade { background: linear-gradient(90deg, transparent, rgb(0 0 0 / .3) 60%, rgb(0 0 0 / .55) 90%, transparent); }

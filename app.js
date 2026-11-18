@@ -231,9 +231,12 @@ function coverEl(b, pct) {
   const inner = el('div', 'cover-in');
   if (b.hasCover) {
     const img = new Image();
-    img.alt = ''; img.decoding = 'async';
+    img.alt = '';
     inner.append(img);
-    coverURL(b.id).then(u => { if (u) img.src = u; else img.replaceWith(genCover(b)); });
+    // обложка уже загружалась — ставим сразу, без пустого кадра (иначе после выхода из книги обложки мигали)
+    const known = coverURLs.get(b.id);
+    if (known) img.src = known;
+    else coverURL(b.id).then(u => { if (u) img.src = u; else img.replaceWith(genCover(b)); });
   } else inner.append(genCover(b));
   c.append(inner);
   if (pct >= 0.995) c.append(el('span', 'done', 'Прочитано'));
@@ -565,6 +568,10 @@ function layout() {
   Object.assign(flow.style, { left: m + 'px', width: W + 'px', height: H + 'px', columnWidth: W + 'px', columnGap: 2 * m + 'px' });
   flow.style.setProperty('--page-h', H + 'px');
   R.pages = countPages();
+  // невидимый ограничитель: прокрутка должна доставать до самого конца последней страницы
+  let end = pager.querySelector('.pager-end');
+  if (!end) { end = document.createElement('div'); end.className = 'pager-end'; end.setAttribute('aria-hidden', 'true'); pager.append(end); }
+  end.style.cssText = `position:absolute;top:0;width:1px;height:1px;left:${R.pages * W0 - 1}px;pointer-events:none`;
 }
 
 function buildIndex() {
@@ -662,10 +669,26 @@ async function loadChapter(ch) {
   layout();
 }
 
+// Страницы листаются прокруткой контейнера, а не сдвигом всей главы (transform).
+// Глава — полоса в десятки экранов; iPhone дорисовывает такой слой кусками, и текст мигал.
+// Прокручиваемый контейнер он рисует плиткой, без мигания.
+let scrollAnim = 0;
+function scrollToX(x, anim) {
+  cancelAnimationFrame(scrollAnim);
+  if (!anim || !motionOK()) { pager.scrollLeft = x; return; }
+  const x0 = pager.scrollLeft, dx = x - x0, t0 = performance.now(), D = 340;
+  if (Math.abs(dx) < 1) { pager.scrollLeft = x; return; }
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  const step = now => {
+    const t = Math.min(1, (now - t0) / D);
+    pager.scrollLeft = x0 + dx * ease(t);
+    if (t < 1) scrollAnim = requestAnimationFrame(step);
+  };
+  scrollAnim = requestAnimationFrame(step);
+}
 function showPage(p, anim = false) {
   R.page = Math.max(0, Math.min(p, R.pages - 1));
-  flow.style.transition = anim && motionOK() ? 'transform .36s cubic-bezier(.22,.8,.24,1)' : 'none';
-  flow.style.transform = `translate3d(${-R.page * R.S}px,0,0)`;
+  scrollToX(R.page * R.S, anim);
   updateInfo();
 }
 function turnTo(p) {
@@ -694,12 +717,11 @@ function sweep(dir) {
 // след лапки там, где коснулась
 function pawAt(x, y) {
   if (!motionOK()) return;
-  const r = pager.getBoundingClientRect();
   const s = icon('i-paw', 'tap-paw');
-  s.style.left = (x - r.left) + 'px';
-  s.style.top = (y - r.top) + 'px';
+  s.style.left = x + 'px';
+  s.style.top = y + 'px';
   s.style.rotate = (Math.random() * 40 - 20).toFixed(0) + 'deg';
-  pager.append(s);
+  reader.append(s); // не внутрь прокручиваемого pager, иначе лапка уедет вместе со страницей
   const a = s.animate([{ opacity: 0, scale: 0.4 }, { opacity: 0.32, scale: 1, offset: 0.3 }, { opacity: 0, scale: 1.15 }], { duration: 520, easing: 'ease-out' });
   const rm = () => s.remove();
   a.finished.then(rm, rm);
@@ -821,19 +843,14 @@ async function openBook(id, src, { instant = false } = {}) {
     save();
 
     R.src = src?.classList?.contains('hero') ? 'hero' : 'card';
-    // Книга мягко поднимается навстречу (вместо перехода «обложка → книга», который на iOS мелькал).
-    // Обложка, с которой открыли, чуть кивает — отклик на касание.
+    // Книга выезжает снизу сплошным листом: без прозрачности (полка не просвечивает) — ничего не мелькает.
+    reader.getAnimations().forEach(a => a.cancel()); // хвосты прошлого закрытия не должны держать лист внизу
     reader.classList.remove('preparing');
     if (!instant && motionOK()) {
-      const cover = src ? $('.cover', src) : null;
-      cover?.animate([{ scale: '1' }, { scale: '0.94' }, { scale: '1' }], { duration: 260, easing: 'ease-out' });
-      reader.animate([
-        { opacity: 0, transform: 'translateY(22px) scale(0.985)' },
-        { opacity: 1, transform: 'none' },
-      ], { duration: 340, easing: 'cubic-bezier(.22,.8,.24,1)' });
+      reader.animate([{ transform: 'translateY(100%)' }, { transform: 'translateY(0)' }],
+        { duration: 420, easing: 'cubic-bezier(.2,.85,.25,1)' });
     }
     library.inert = true;
-    document.documentElement.classList.add('reading');
     pager.focus({ preventScroll: true });
     maybeTips();
   } catch (e) {
@@ -842,7 +859,6 @@ async function openBook(id, src, { instant = false } = {}) {
     reader.hidden = true;
     reader.classList.remove('preparing');
     library.inert = false;
-    document.documentElement.classList.remove('reading');
     lsSet('view', 'library');
     R.open = false;
   } finally {
@@ -868,21 +884,19 @@ async function closeReader() {
     reader.hidden = true;
     reader.classList.remove('chrome');
     library.inert = false;
-    document.documentElement.classList.remove('reading');
     flow.innerHTML = '';
     R.urls.forEach(u => URL.revokeObjectURL(u));
     R.urls = []; R.nodes = []; R.open = false; R.book = null; R.closing = false;
     $('#r-backlink').hidden = true;
   };
-  // книга мягко уходит вниз, полка уже обновлена под ней
+  // книга уезжает вниз сплошным листом, открывая уже обновлённую полку
   if (motionOK()) {
-    const out = reader.animate([
-      { opacity: 1, transform: 'none' },
-      { opacity: 0, transform: 'translateY(26px) scale(0.985)' },
-    ], { duration: 240, easing: 'cubic-bezier(.4,0,.8,.4)', fill: 'forwards' });
+    const out = reader.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(100%)' }],
+      { duration: 300, easing: 'cubic-bezier(.5,0,.75,0)', fill: 'forwards' });
     await animDone(out, 400);
     finish();
     out.cancel();
+    reader.getAnimations().forEach(a => a.cancel());
   } else finish();
   cover?.closest('button')?.focus({ preventScroll: true });
 }
@@ -980,7 +994,8 @@ new ResizeObserver(() => {
 
 let g = null;
 pager.addEventListener('pointerdown', e => {
-  if (e.button !== 0 || R.busy) return;
+  // не игнорируем касание во время смены главы: тап по центру откроет меню, листание само подождёт
+  if (e.button !== 0) return;
   g = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, drag: false, dx: 0 };
 });
 pager.addEventListener('pointermove', e => {
@@ -989,14 +1004,14 @@ pager.addEventListener('pointermove', e => {
   if (!g.drag && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
     g.drag = true;
     try { pager.setPointerCapture(e.pointerId); } catch { /* ничего */ }
-    flow.style.transition = 'none';
+    cancelAnimationFrame(scrollAnim);
   }
   if (g.drag) {
     g.dx = dx;
     if (!motionOK()) return;
     const edge = (R.page === 0 && dx > 0 && R.ch === 0) || (R.page === R.pages - 1 && dx < 0 && R.ch === R.book.chapterLens.length - 1);
     const d = edge ? dx * 0.3 : dx;
-    flow.style.transform = `translate3d(${-R.page * R.S + d}px,0,0)`;
+    pager.scrollLeft = R.page * R.S - d; // страница едет за пальцем
     // тень следует за краем страницы под пальцем
     const sh = $('#shade'), W = pager.clientWidth, w = W * 0.34;
     const fold = d < 0 ? W + d : d;
