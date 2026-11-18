@@ -769,10 +769,11 @@ async function findSnippet(snippet, skipCh) {
 /* --- открыть / закрыть --- */
 
 async function openBook(id, src, { instant = false } = {}) {
-  if (R.open || R.busy) return;
-  const book = await DB.get('books', id);
-  if (!book) return;
-  R.busy = true;
+  if (R.open || R.busy || R.closing) return;
+  R.busy = true; // сразу: второй быстрый тап по «Продолжить» не запустит второе открытие
+  R.wantClose = false;
+  const book = await DB.get('books', id).catch(() => null);
+  if (!book) { R.busy = false; return; }
   try {
     R.book = book;
     R.chStarts = book.chapterLens.reduce((a, l, i) => (a.push(i ? a[i - 1] + book.chapterLens[i - 1] : 0), a), []);
@@ -839,14 +840,22 @@ async function openBook(id, src, { instant = false } = {}) {
     console.error(e);
     toast('Книжка не открылась 😿');
     reader.hidden = true;
+    reader.classList.remove('preparing');
+    library.inert = false;
+    document.documentElement.classList.remove('reading');
+    lsSet('view', 'library');
     R.open = false;
   } finally {
     R.busy = false;
+    if (R.wantClose) { R.wantClose = false; closeReader(); }
   }
 }
 
 async function closeReader() {
-  if (!R.open) return;
+  if (!R.open || R.closing) return;
+  // книга ещё открывается — закроем сразу, как только откроется (иначе полка может остаться «замороженной»)
+  if (R.busy) { R.wantClose = true; return; }
+  R.closing = true;
   save(); flushSave();
   lsSet('view', 'library');
   const id = R.book.id;
@@ -862,9 +871,8 @@ async function closeReader() {
     document.documentElement.classList.remove('reading');
     flow.innerHTML = '';
     R.urls.forEach(u => URL.revokeObjectURL(u));
-    R.urls = []; R.nodes = []; R.open = false; R.book = null;
+    R.urls = []; R.nodes = []; R.open = false; R.book = null; R.closing = false;
     $('#r-backlink').hidden = true;
-    setTimeout(applyUpdate, 700); // если пока читала пришла новая версия — обновимся сейчас, на полке
   };
   // книга мягко уходит вниз, полка уже обновлена под ней
   if (motionOK()) {
@@ -933,6 +941,7 @@ async function changeChapter(ch, where, dir = 1) {
     }
   } finally {
     R.busy = false;
+    if (R.wantClose) { R.wantClose = false; closeReader(); }
   }
 }
 function goTo(ch, off) {
@@ -1233,19 +1242,24 @@ persistStorage();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(e => console.warn('sw', e));
-  // Пришла новая версия: перезагружаемся незаметно — когда приложение свёрнуто или открыта полка,
-  // и никогда посреди чтения. Место в книге сохранено, после перезагрузки откроется та же страница.
+  // Пришла новая версия. Перезагружаемся ТОЛЬКО незаметно:
+  //  • пока приложение свёрнуто (её не видно), или
+  //  • в первые секунды после запуска, если она ещё ничего не нажимала.
+  // Никогда — после её касаний: иначе перезагрузка может оборвать открытие книги.
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController) return;
     updateReady = true;
-    if (!R.open && !$('dialog[open]') && !importing) applyUpdate();
+    if (!touchedSinceStart && performance.now() < 5000) applyUpdate();
   });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') applyUpdate(); });
 }
 var updateReady = false;
+var touchedSinceStart = false;
+addEventListener('pointerdown', () => { touchedSinceStart = true; }, { capture: true, passive: true });
+addEventListener('keydown', () => { touchedSinceStart = true; }, { capture: true, passive: true });
 function applyUpdate() {
-  if (!updateReady || importing) return;
+  if (!updateReady || importing || R.busy) return;
   updateReady = false;
   save(); flushSave();
   setTimeout(() => location.reload(), 150);
