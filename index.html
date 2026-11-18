@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Мурчалка</title>
+<meta name="description" content="Уютная читалка книг: EPUB, FB2, TXT. Всё хранится на телефоне, место в книге не теряется.">
+<meta name="theme-color" content="#FFF6EE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Мурчалка">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<script>
+  // тема до первой отрисовки, чтобы не мигало
+  try {
+    var s = JSON.parse(localStorage.getItem('settings') || '{}');
+    var t = s.theme && s.theme !== 'auto' ? s.theme : (matchMedia('(prefers-color-scheme: dark)').matches ? (s.dark || 'night') : (s.light || 'milk'));
+    document.documentElement.dataset.theme = t;
+    // яркость и тёплый свет — сразу, чтобы ночью не ослепило при запуске
+    var b = s.bright == null ? 100 : s.bright, w = s.warm || 0;
+    document.documentElement.style.setProperty('--dim', ((100 - b) / 100 * 0.82).toFixed(3));
+    document.documentElement.style.setProperty('--warm', (w / 100 * 0.34).toFixed(3));
+  } catch (e) { document.documentElement.dataset.theme = 'milk'; }
+</script>
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-toc" viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-aa" viewBox="0 0 24 24"><path d="M2.5 18.5L7.5 6l5 12.5M4.4 14h6.2M13.5 18.5l3.6-8.5 3.6 8.5M14.8 15.6h4.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mark" viewBox="0 0 24 24"><path d="M6.5 3.5h11v17l-5.5-4.2-5.5 4.2z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mark-on" viewBox="0 0 24 24"><path d="M6.5 3.5h11v17l-5.5-4.2-5.5 4.2z" fill="currentColor" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="18.5" cy="12" r="2" fill="currentColor"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="15" cy="7" r="2.3" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="9" cy="17" r="2.3" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5C9.5 4.8 6.5 4.5 3.5 5v13.5c3-.5 6 0 8.5 1.5 2.5-1.5 5.5-2 8.5-1.5V5c-3-.5-6-.2-8.5 1.5zM12 6.5V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5v14M18 5.5L10 12l8 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 5v14M6 5.5l8 6.5-8 6.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-return" viewBox="0 0 24 24"><path d="M9 7L4.5 11.5 9 16M5 11.5h9a5 5 0 010 10h-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><ellipse cx="12" cy="16" rx="5.2" ry="4.3" fill="currentColor"/><ellipse cx="5.6" cy="10.6" rx="2.1" ry="2.6" fill="currentColor"/><ellipse cx="9.4" cy="6.6" rx="2.1" ry="2.7" fill="currentColor"/><ellipse cx="14.6" cy="6.6" rx="2.1" ry="2.7" fill="currentColor"/><ellipse cx="18.4" cy="10.6" rx="2.1" ry="2.6" fill="currentColor"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A8 8 0 019.4 4.5a8 8 0 1010.1 10.1z" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun-low" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 5v.5M12 18.5v.5M5 12h.5M18.5 12h.5M7 7l.4.4M16.6 16.6l.4.4M7 17l.4-.4M16.6 7.4l.4-.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-candle" viewBox="0 0 24 24"><path d="M12 3c2 2.4 2.6 4 1.6 5.4-.8 1.1-2.4 1.1-3.2 0C9.4 7 10 5.4 12 3z" fill="currentColor"/><rect x="8.5" y="11" width="7" height="10" rx="1.6" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 012-2h4l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2h-13a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.6 9.4a2.5 2.5 0 014.8.9c0 1.7-2.4 2-2.4 3.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="cat-face" viewBox="0 0 40 36"><path d="M5 15L7 2l9 7zM35 15L33 2l-9 7z" fill="var(--cat)"/><path d="M8 11l1-5 4 3.5zM32 11l-1-5-4 3.5z" fill="var(--cat-inner)"/><ellipse cx="20" cy="20" rx="16" ry="13.5" fill="var(--cat)"/><ellipse cx="14" cy="19.5" rx="2" ry="2.6" fill="var(--cat-ink)"/><ellipse cx="26" cy="19.5" rx="2" ry="2.6" fill="var(--cat-ink)"/><path d="M18.6 24h2.8L20 25.6z" fill="var(--nose)"/><ellipse cx="10" cy="24.5" rx="3" ry="1.6" fill="var(--blush)"/><ellipse cx="30" cy="24.5" rx="3" ry="1.6" fill="var(--blush)"/></symbol>
+</svg>
+
+<!-- ============ ПОЛКА ============ -->
+<div id="library">
+  <header class="lib-head">
+    <div class="brand">
+      <svg class="mascot" viewBox="0 0 120 100" aria-hidden="true">
+        <g class="m-head">
+          <g class="m-ear m-ear-l"><path d="M20 46L27 8l26 22z" fill="var(--cat)"/><path d="M27 37l3-19 14 13z" fill="var(--cat-inner)"/></g>
+          <g class="m-ear m-ear-r"><path d="M100 46L93 8 67 30z" fill="var(--cat)"/><path d="M93 37l-3-19-14 13z" fill="var(--cat-inner)"/></g>
+          <ellipse cx="60" cy="55" rx="43" ry="35" fill="var(--cat)"/>
+          <path d="M52 24q8-3 16 0M50 31q10-3 20 0" stroke="var(--cat-stripe)" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+          <g class="m-eyes">
+            <ellipse cx="43" cy="54" rx="5.6" ry="7.2" fill="var(--cat-ink)"/>
+            <ellipse cx="77" cy="54" rx="5.6" ry="7.2" fill="var(--cat-ink)"/>
+            <circle cx="45" cy="51" r="1.9" fill="#fff"/><circle cx="79" cy="51" r="1.9" fill="#fff"/>
+          </g>
+          <ellipse cx="32" cy="67" rx="7.5" ry="4.2" fill="var(--blush)" opacity=".75"/>
+          <ellipse cx="88" cy="67" rx="7.5" ry="4.2" fill="var(--blush)" opacity=".75"/>
+          <path d="M56 62h8l-4 4.4z" fill="var(--nose)"/>
+          <path d="M60 66q-3 6-8.5 3.4M60 66q3 6 8.5 3.4" stroke="var(--cat-ink)" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <path d="M22 60l-14-3M22 66l-15 1M98 60l14-3M98 66l15 1" stroke="var(--cat-ink)" stroke-width="1.4" stroke-linecap="round" opacity=".45"/>
+        </g>
+        <g class="m-paws">
+          <ellipse cx="38" cy="92" rx="13" ry="8" fill="var(--cat)"/><ellipse cx="82" cy="92" rx="13" ry="8" fill="var(--cat)"/>
+          <path d="M34 90v4M40 90v4M78 90v4M84 90v4" stroke="var(--cat-stripe)" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+        <g class="m-heart" opacity="0"><path d="M60 14c-3-5-11-4-11 2 0 5 6 8 11 12 5-4 11-7 11-12 0-6-8-7-11-2z" fill="var(--accent)"/></g>
+      </svg>
+      <div>
+        <h1>Мурчалка</h1>
+        <p class="sub">моя книжная полка</p>
+      </div>
+    </div>
+    <div class="head-actions">
+      <button class="icon-btn theme-btn" type="button" aria-label="Тёмная тема" aria-pressed="false"><svg><use href="#i-moon"/></svg></button>
+      <button class="icon-btn" id="app-settings-btn" type="button" aria-label="Настройки"><svg><use href="#i-gear"/></svg></button>
+    </div>
+  </header>
+
+  <section id="install-hint" class="hint" hidden>
+    <svg class="hint-cat" aria-hidden="true"><use href="#cat-face"/></svg>
+    <div>
+      <p class="hint-title">Поставь Мурчалку на экран «Домой»</p>
+      <p>Нажми <b>Поделиться</b> внизу Safari → <b>На экран «Домой»</b>. Так книжки и закладки будут храниться надёжно, а читалка откроется как приложение.</p>
+    </div>
+    <button class="icon-btn small" id="install-hint-close" type="button" aria-label="Скрыть подсказку"><svg><use href="#i-close"/></svg></button>
+  </section>
+
+  <section id="backup-hint" class="hint" hidden>
+    <svg class="hint-cat" aria-hidden="true"><use href="#cat-face"/></svg>
+    <div>
+      <p class="hint-title">Сохрани копию прогресса</p>
+      <p>Маленький файл со всеми страницами и закладками — на всякий случай. Положи его в «Файлы» или отправь себе.</p>
+      <button type="button" class="btn small-btn" id="backup-hint-save">Сохранить копию</button>
+    </div>
+    <button class="icon-btn small" id="backup-hint-close" type="button" aria-label="Напомнить позже"><svg><use href="#i-close"/></svg></button>
+  </section>
+
+  <section id="importing" class="importing" hidden aria-live="polite">
+    <svg class="reading-cat" viewBox="0 0 160 124" aria-hidden="true">
+      <path d="M48 46L50 14l22 20zM112 46l-2-32-22 20z" fill="var(--cat)"/>
+      <path d="M54 37l1-14 10 9zM106 37l-1-14-10 9z" fill="var(--cat-inner)"/>
+      <ellipse cx="80" cy="56" rx="36" ry="30" fill="var(--cat)"/>
+      <path d="M73 31q7-3 14 0" stroke="var(--cat-stripe)" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <g class="rc-eyes"><ellipse cx="66" cy="60" rx="4.2" ry="4.8" fill="var(--cat-ink)"/><ellipse cx="94" cy="60" rx="4.2" ry="4.8" fill="var(--cat-ink)"/></g>
+      <ellipse cx="57" cy="69" rx="6" ry="3.3" fill="var(--blush)" opacity=".75"/><ellipse cx="103" cy="69" rx="6" ry="3.3" fill="var(--blush)" opacity=".75"/>
+      <path d="M77 66h6l-3 3.2z" fill="var(--nose)"/>
+      <path d="M80 88L38 80v32l42 6z" fill="var(--card)" stroke="var(--line-strong)" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M80 88l42-8v32l-42 6z" fill="var(--card)" stroke="var(--line-strong)" stroke-width="2" stroke-linejoin="round"/>
+      <path class="rc-page" d="M80 88l40-7.5v31l-40 5.5z" fill="var(--paper-2)" stroke="var(--line-strong)" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M46 90l26 4M46 97l26 4M88 94l24-4M88 101l24-4" stroke="var(--line-strong)" stroke-width="1.6" stroke-linecap="round"/>
+      <ellipse cx="38" cy="98" rx="10" ry="8" fill="var(--cat)"/><ellipse cx="122" cy="98" rx="10" ry="8" fill="var(--cat)"/>
+    </svg>
+    <div>
+      <p class="imp-title" id="imp-title">Кот читает книжку…</p>
+      <p class="imp-step" id="imp-step">Нюхаю файл</p>
+      <div class="imp-bar" aria-hidden="true"><span></span></div>
+    </div>
+  </section>
+
+  <section id="hero" aria-label="Читаю сейчас" hidden></section>
+
+  <section class="shelf" aria-labelledby="shelf-title">
+    <div class="shelf-head"><h2 id="shelf-title" tabindex="-1">Мои книжки <span id="count" class="count"></span></h2><button type="button" class="link-btn" id="how-add"><svg aria-hidden="true"><use href="#i-help"/></svg>Как добавить</button></div>
+    <ul id="grid" class="grid"></ul>
+    <div id="empty" class="empty" hidden>
+      <svg class="sleepy-cat" viewBox="0 0 220 150" aria-hidden="true">
+        <ellipse cx="112" cy="128" rx="96" ry="17" fill="var(--accent-soft)"/>
+        <g class="sc-body">
+          <ellipse cx="124" cy="96" rx="64" ry="35" fill="var(--cat)"/>
+          <path d="M120 64q10 4 12 16M142 64q8 6 8 18M100 66q8 4 10 14" stroke="var(--cat-stripe)" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <path d="M184 104c26 8 6 30-50 26" stroke="var(--cat)" stroke-width="13" fill="none" stroke-linecap="round"/>
+          <path d="M196 114l-8 4" stroke="var(--cat-stripe)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M50 76L46 46l24 15zM88 60l14-18 4 30z" fill="var(--cat)"/>
+          <path d="M53 68l-2-14 11 7zM93 58l7-9 2 14z" fill="var(--cat-inner)"/>
+          <circle cx="74" cy="90" r="32" fill="var(--cat)"/>
+          <path d="M58 90q6 5 12 0M80 90q6 5 12 0" stroke="var(--cat-ink)" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+          <ellipse cx="55" cy="99" rx="6.5" ry="3.6" fill="var(--blush)" opacity=".75"/><ellipse cx="95" cy="99" rx="6.5" ry="3.6" fill="var(--blush)" opacity=".75"/>
+          <path d="M72 98h6l-3 3.4z" fill="var(--nose)"/>
+          <ellipse cx="66" cy="120" rx="13" ry="8" fill="var(--cat)"/><ellipse cx="92" cy="122" rx="12" ry="7.5" fill="var(--cat)"/>
+        </g>
+        <g class="sc-z" fill="var(--ink-2)" font-family="ui-rounded, system-ui, sans-serif" font-weight="800">
+          <text class="z z1" x="104" y="52" font-size="16">z</text>
+          <text class="z z2" x="116" y="38" font-size="20">z</text>
+          <text class="z z3" x="130" y="22" font-size="24">Z</text>
+        </g>
+      </svg>
+      <p class="empty-title">Тут пока пусто</p>
+      <p class="empty-text">Котик спит и ждёт книжек. Скачай книгу в EPUB, FB2 или TXT — и добавь её сюда.</p>
+      <ol class="steps">
+        <li><span class="step-n">1</span><span><b>Скачай книгу</b> в Safari или Telegram — она окажется в приложении «Файлы».</span></li>
+        <li><span class="step-n">2</span><span>Нажми <b>«Добавить книжку»</b> внизу.</span></li>
+        <li><span class="step-n">3</span><span>Открой <b>«Обзор» → «Загрузки»</b> и выбери файл. Можно сразу несколько.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <div class="fab-wrap">
+    <button id="add-btn" class="fab" type="button"><svg aria-hidden="true"><use href="#i-paw"/></svg><span>Добавить книжку</span></button>
+  </div>
+  <input type="file" id="file" multiple hidden>
+  <input type="file" id="backup-file" accept=".json,application/json" hidden>
+</div>
+
+<!-- ============ ЧИТАЛКА ============ -->
+<div id="reader" hidden>
+  <div class="r-info r-info-top"><span id="r-chapter"></span></div>
+  <div id="pager" tabindex="-1" role="region" aria-label="Страница книги">
+    <div id="flow" class="book"></div>
+    <div id="shade" class="shade" aria-hidden="true"></div>
+  </div>
+  <div class="r-info r-info-bottom">
+    <span id="r-page"></span>
+    <span class="r-pct"><svg aria-hidden="true"><use href="#i-paw"/></svg><span id="r-pct"></span></span>
+  </div>
+  <div id="r-ribbon" class="ribbon" hidden aria-hidden="true"><svg><use href="#i-paw"/></svg></div>
+
+  <header class="r-bar r-bar-top">
+    <button class="icon-btn" id="r-close" type="button" aria-label="На полку"><svg><use href="#i-back"/></svg></button>
+    <div class="r-title"><span id="r-book-title"></span><span id="r-book-author"></span></div>
+    <button class="icon-btn" id="r-mark" type="button" aria-label="Закладка" aria-pressed="false"><svg><use href="#i-mark"/></svg></button>
+    <button class="icon-btn" id="r-toc" type="button" aria-label="Оглавление и закладки"><svg><use href="#i-toc"/></svg></button>
+    <button class="icon-btn theme-btn" type="button" aria-label="Тёмная тема" aria-pressed="false"><svg><use href="#i-moon"/></svg></button>
+    <button class="icon-btn" id="r-aa" type="button" aria-label="Шрифт, яркость и тема"><svg><use href="#i-aa"/></svg></button>
+  </header>
+
+  <footer class="r-bar r-bar-bottom">
+    <p class="r-where" id="r-where"></p>
+    <div class="r-slider-row">
+      <button class="icon-btn small" id="r-prev-ch" type="button" aria-label="Предыдущая глава"><svg><use href="#i-prev"/></svg></button>
+      <input type="range" id="r-slider" min="0" max="1000" step="1" value="0" aria-label="Место в книге">
+      <button class="icon-btn small" id="r-next-ch" type="button" aria-label="Следующая глава"><svg><use href="#i-next"/></svg></button>
+    </div>
+  </footer>
+
+  <button id="r-backlink" class="pill" type="button" hidden><svg aria-hidden="true"><use href="#i-return"/></svg>Вернуться, где читала</button>
+
+  <div id="r-tips" class="tips" hidden>
+    <div class="tip tip-l"><svg aria-hidden="true"><use href="#i-back"/></svg><span>Назад</span></div>
+    <div class="tip tip-c"><svg class="tip-cat" aria-hidden="true"><use href="#cat-face"/></svg><span>Меню</span></div>
+    <div class="tip tip-r"><span>Дальше</span><svg aria-hidden="true" style="rotate:180deg"><use href="#i-back"/></svg></div>
+    <p class="tip-note">Листай пальцем или тапай по краям. Место в книге запоминается само на каждой странице.</p>
+  </div>
+</div>
+
+<!-- ============ ЛИСТЫ ============ -->
+<dialog id="dlg-aa" class="sheet see-through" closedby="any" aria-labelledby="aa-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="aa-title" class="sheet-title">Как читать удобнее</h2>
+  <div class="slide-row">
+    <label class="slide-label" for="bright">Яркость <output id="bright-val">100%</output></label>
+    <div class="slide">
+      <svg aria-hidden="true"><use href="#i-sun-low"/></svg>
+      <input type="range" id="bright" class="nice-range" min="25" max="100" step="1">
+      <svg aria-hidden="true"><use href="#i-sun"/></svg>
+    </div>
+  </div>
+  <div class="slide-row">
+    <label class="slide-label" for="warm">Тёплый свет <output id="warm-val">0%</output></label>
+    <div class="slide">
+      <svg aria-hidden="true" class="cool"><use href="#i-candle"/></svg>
+      <input type="range" id="warm" class="nice-range warm" min="0" max="100" step="1">
+      <svg aria-hidden="true" class="hot"><use href="#i-candle"/></svg>
+    </div>
+  </div>
+  <div class="slide-row">
+    <label class="slide-label" for="fs">Размер текста <output id="fs-val">100%</output></label>
+    <div class="slide">
+      <button type="button" class="step-btn" data-fs="-1" aria-label="Мельче">A</button>
+      <input type="range" id="fs" class="nice-range" min="70" max="200" step="5">
+      <button type="button" class="step-btn big" data-fs="1" aria-label="Крупнее">A</button>
+    </div>
+  </div>
+  <div class="set-row col">
+    <span class="set-label">Шрифт</span>
+    <div class="seg" data-set="font">
+      <button type="button" data-v="serif" class="f-serif">Книжный</button>
+      <button type="button" data-v="sans" class="f-sans">Простой</button>
+      <button type="button" data-v="round" class="f-round">Круглый</button>
+    </div>
+  </div>
+  <div class="set-row col">
+    <span class="set-label">Строки</span>
+    <div class="seg" data-set="lh">
+      <button type="button" data-v="1.35">Плотно</button>
+      <button type="button" data-v="1.55">Обычно</button>
+      <button type="button" data-v="1.8">Свободно</button>
+    </div>
+  </div>
+  <div class="set-row col">
+    <span class="set-label">Поля</span>
+    <div class="seg" data-set="margin">
+      <button type="button" data-v="s">Узкие</button>
+      <button type="button" data-v="m">Средние</button>
+      <button type="button" data-v="l">Широкие</button>
+    </div>
+  </div>
+  <div class="set-row col">
+    <span class="set-label">Края</span>
+    <div class="seg" data-set="justify">
+      <button type="button" data-v="1">По ширине</button>
+      <button type="button" data-v="0">Слева</button>
+    </div>
+  </div>
+  <div class="set-row col">
+    <span class="set-label">Тема</span>
+    <div class="themes" data-set="theme">
+      <button type="button" data-v="auto" class="th th-auto"><i></i>Авто</button>
+      <button type="button" data-v="milk" class="th th-milk"><i></i>Молочко</button>
+      <button type="button" data-v="caramel" class="th th-caramel"><i></i>Карамелька</button>
+      <button type="button" data-v="night" class="th th-night"><i></i>Ночь</button>
+      <button type="button" data-v="black" class="th th-black"><i></i>Чёрный кот</button>
+    </div>
+  </div>
+  <form method="dialog"><button class="btn wide" value="ok">Готово</button></form>
+</dialog>
+
+<dialog id="dlg-toc" class="sheet tall" closedby="any" aria-labelledby="toc-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="toc-title" class="visually-hidden">Оглавление и закладки</h2>
+  <div class="tabs">
+    <button type="button" id="tab-toc" aria-pressed="true">Оглавление</button>
+    <button type="button" id="tab-marks" aria-pressed="false">Закладки <span id="marks-count"></span></button>
+  </div>
+  <ol id="toc-list" class="toc-list"></ol>
+  <ul id="marks-list" class="marks-list" hidden></ul>
+</dialog>
+
+<dialog id="dlg-note" class="sheet" closedby="any" aria-labelledby="note-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="note-title" class="sheet-title">Примечание</h2>
+  <div id="note-body" class="note-body book"></div>
+  <form method="dialog"><button class="btn wide" value="ok">Понятно</button></form>
+</dialog>
+
+<dialog id="dlg-book" class="sheet" closedby="any" aria-labelledby="bk-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="bk-title" class="sheet-title"></h2>
+  <p id="bk-info" class="sheet-sub"></p>
+  <div class="actions">
+    <button type="button" class="btn wide" id="bk-read"><svg aria-hidden="true"><use href="#i-book"/></svg>Читать</button>
+    <button type="button" class="btn wide ghost danger" id="bk-del"><svg aria-hidden="true"><use href="#i-trash"/></svg>Убрать с полки</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-confirm" class="sheet" aria-labelledby="cf-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="cf-title" class="sheet-title"></h2>
+  <p id="cf-text" class="sheet-sub"></p>
+  <form method="dialog" class="actions row">
+    <button class="btn wide ghost" value="" autofocus>Оставить</button>
+    <button class="btn wide danger-fill" value="yes" id="cf-yes">Убрать</button>
+  </form>
+</dialog>
+
+<dialog id="dlg-add" class="sheet" closedby="any" aria-labelledby="add-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="add-title" class="sheet-title">Как добавить книжку</h2>
+  <ol class="steps">
+    <li><span class="step-n">1</span><span><b>Скачай файл</b> книги где угодно: в Safari, Telegram, почте. Подойдут <b>EPUB, FB2, FB2.ZIP, TXT</b>.</span></li>
+    <li><span class="step-n">2</span><span>Нажми кнопку ниже — откроются <b>«Файлы»</b>.</span></li>
+    <li><span class="step-n">3</span><span>Внизу выбери <b>«Обзор»</b>, затем папку <b>«Загрузки»</b> (или «Недавние») и коснись книжки. Можно отметить сразу несколько.</span></li>
+  </ol>
+  <p class="sheet-sub">Из Telegram: открой файл → «Поделиться» → «Сохранить в Файлы», потом шаг 2.</p>
+  <button type="button" class="btn wide" id="add-pick"><svg aria-hidden="true"><use href="#i-folder"/></svg>Выбрать файлы</button>
+</dialog>
+
+<dialog id="dlg-app" class="sheet" closedby="any" aria-labelledby="app-title">
+  <div class="sheet-grip" aria-hidden="true"></div>
+  <h2 id="app-title" class="sheet-title">Настройки Мурчалки</h2>
+  <div class="set-row col">
+    <span class="set-label">Тема</span>
+    <div class="themes" data-set="theme">
+      <button type="button" data-v="auto" class="th th-auto"><i></i>Авто</button>
+      <button type="button" data-v="milk" class="th th-milk"><i></i>Молочко</button>
+      <button type="button" data-v="caramel" class="th th-caramel"><i></i>Карамелька</button>
+      <button type="button" data-v="night" class="th th-night"><i></i>Ночь</button>
+      <button type="button" data-v="black" class="th th-black"><i></i>Чёрный кот</button>
+    </div>
+  </div>
+  <div class="set-block">
+    <p class="set-label">Запасная копия прогресса</p>
+    <p class="sheet-sub">Страницы и закладки всех книжек в маленьком файле. Если что-то случится с телефоном — добавь книжки заново и восстанови копию.</p>
+    <div class="actions row">
+      <button type="button" class="btn wide ghost" id="backup-save">Сохранить</button>
+      <button type="button" class="btn wide ghost" id="backup-load">Восстановить</button>
+    </div>
+  </div>
+  <p class="sheet-sub small" id="storage-info"></p>
+</dialog>
+
+<div id="dim" aria-hidden="true"></div>
+<div id="warmth" aria-hidden="true"></div>
+
+<div id="toast" class="toast" popover="manual" role="status"></div>
+
+</body>
+</html>

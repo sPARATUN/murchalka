@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#FFD9E1"/>
+  <path d="M96 424h320v36H96z" fill="#EC7F97" opacity=".25"/>
+  <path d="M120 230L136 88l104 74zM392 230L376 88l-104 74z" fill="#F5B385"/>
+  <path d="M146 196l8-72 52 38zM366 196l-8-72-52 38z" fill="#F7A8B8"/>
+  <ellipse cx="256" cy="282" rx="168" ry="146" fill="#F5B385"/>
+  <path d="M226 160q30-10 60 0M216 188q40-12 80 0" stroke="#DF8C56" stroke-width="14" fill="none" stroke-linecap="round"/>
+  <ellipse cx="192" cy="276" rx="22" ry="29" fill="#3D2E2A"/>
+  <ellipse cx="320" cy="276" rx="22" ry="29" fill="#3D2E2A"/>
+  <circle cx="200" cy="264" r="8" fill="#fff"/><circle cx="328" cy="264" r="8" fill="#fff"/>
+  <ellipse cx="148" cy="330" rx="28" ry="16" fill="#F7A8B8"/><ellipse cx="364" cy="330" rx="28" ry="16" fill="#F7A8B8"/>
+  <path d="M240 318h32l-16 18z" fill="#E46F86"/>
+  <path d="M256 336q-12 24-34 14M256 336q12 24 34 14" stroke="#3D2E2A" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>
