@@ -526,22 +526,34 @@ html.reading { overflow: hidden; }
 
 /* ===================== ЛИСТЫ (dialog) ===================== */
 
+/* Сам <dialog> — прозрачный слой на весь экран, карточка листа (.sheet-panel) внутри у нижнего края.
+   Тап мимо карточки попадает в сам dialog (обычный элемент), поэтому на iPhone закрытие срабатывает надёжно. */
 dialog.sheet {
-  margin: auto auto 0;
+  position: fixed; inset: 0;
+  margin: 0; padding: 0; border: 0;
+  inline-size: 100%; block-size: 100%;
+  max-inline-size: none; max-block-size: none;
+  background: transparent; color: var(--ink);
+  overflow: hidden;
+  transition: display .36s allow-discrete, overlay .36s allow-discrete;
+}
+dialog.sheet[open] { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.sheet-panel {
+  position: relative;
   inline-size: min(100%, 34rem);
-  max-inline-size: 100%;
   max-block-size: 88dvh;
   padding: 8px calc(var(--sar) + 20px) calc(var(--sab) + 20px) calc(var(--sal) + 20px);
-  border: 0; border-radius: 28px 28px 0 0;
+  border-radius: 28px 28px 0 0;
   background: var(--card); color: var(--ink);
   box-shadow: 0 -10px 40px -10px rgb(0 0 0 / .25);
-  overflow-y: auto;
+  overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   translate: 0 0;
-  transition: translate .36s var(--ease-out), display .36s allow-discrete, overlay .36s allow-discrete;
+  transition: translate .36s var(--ease-out), opacity .2s;
 }
-dialog.sheet.tall { block-size: 80dvh; }
-dialog.sheet:not([open]) { translate: 0 105%; }
-@starting-style { dialog.sheet[open] { translate: 0 105%; } }
+dialog.sheet.tall .sheet-panel { block-size: 80dvh; }
+dialog.sheet:not([open]) .sheet-panel { translate: 0 105%; }
+@starting-style { dialog.sheet[open] .sheet-panel { translate: 0 105%; } }
 dialog.sheet:modal { overscroll-behavior: contain; }
 dialog::backdrop {
   background: var(--backdrop);
@@ -552,11 +564,11 @@ dialog::backdrop {
 dialog:not([open])::backdrop { opacity: 0; }
 @starting-style { dialog[open]::backdrop { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  dialog.sheet { translate: 0 0 !important; opacity: 1; transition: opacity .2s, display .2s allow-discrete, overlay .2s allow-discrete; }
-  dialog.sheet:not([open]) { opacity: 0; }
-  @starting-style { dialog.sheet[open] { opacity: 0; } }
+  .sheet-panel { translate: 0 0 !important; }
+  dialog.sheet:not([open]) .sheet-panel { opacity: 0; }
+  @starting-style { dialog.sheet[open] .sheet-panel { opacity: 0; } }
 }
-dialog.sheet.dragging { transition: none; }
+dialog.sheet.dragging .sheet-panel { transition: none; }
 
 .sheet-grip { inline-size: 44px; block-size: 5px; border-radius: 5px; background: var(--line-strong); margin: 4px auto 14px; }
 /* шапка листа: всегда видна при прокрутке, за неё можно смахнуть лист вниз, справа крестик */
@@ -769,7 +781,7 @@ dialog .steps li { background: var(--paper-2); box-shadow: none; }
 
 /* лист «Аа»: текст за ним виден, всё меняется вживую */
 dialog.see-through::backdrop { background: transparent; }
-dialog.see-through { max-block-size: 66dvh; box-shadow: 0 -12px 40px -8px rgb(0 0 0 / .3); }
+dialog.see-through .sheet-panel { max-block-size: 66dvh; box-shadow: 0 -12px 40px -8px rgb(0 0 0 / .3); }
 .slide-row { padding-block: 8px 6px; border-bottom: 1px solid var(--line); }
 .slide-label { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; font-size: .95rem; }
 .slide-label output { color: var(--ink-2); font-weight: 750; font-size: .85rem; font-variant-numeric: tabular-nums; }

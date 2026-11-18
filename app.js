@@ -137,18 +137,23 @@ function toast(msg) {
 // Листы закрываются тремя способами, и ни один не зависит от поддержки браузером:
 // крестик в шапке, тап мимо листа, свайп вниз за шапку.
 function setupSheet(d) {
-  const outside = (e, r) => e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  // содержимое — в карточку; сам dialog растянут на весь экран и прозрачен
+  const panel = document.createElement('div');
+  panel.className = 'sheet-panel';
+  panel.append(...d.childNodes);
+  d.append(panel);
+
   d.addEventListener('click', e => { if (e.target.closest?.('[data-close]')) d.close(); });
   if (d.getAttribute('closedby') !== 'any') return;
 
-  // тап мимо листа (Safari не знает closedby, поэтому делаем сами и везде)
-  let pressedOutside = false;
-  d.addEventListener('pointerdown', e => { pressedOutside = e.target === d && outside(e, d.getBoundingClientRect()); });
+  // тап мимо карточки: он попадает в сам dialog — обычный элемент, iPhone его точно доставит
+  let downOnLayer = false;
+  d.addEventListener('pointerdown', e => { downOnLayer = e.target === d; });
   d.addEventListener('pointerup', e => {
-    if (pressedOutside && outside(e, d.getBoundingClientRect())) d.close();
-    pressedOutside = false;
+    if (downOnLayer && e.target === d) d.close();
+    downOnLayer = false;
   });
-  d.addEventListener('click', e => { if (e.target === d && d.open && outside(e, d.getBoundingClientRect())) d.close(); });
+  d.addEventListener('click', e => { if (e.target === d && d.open) d.close(); });
 
   // свайп вниз за шапку (у шапки touch-action: none, поэтому прокрутка его не перехватывает)
   const head = d.querySelector('.sheet-head');
@@ -163,14 +168,14 @@ function setupSheet(d) {
   head.addEventListener('pointermove', e => {
     if (y0 == null) return;
     dy = Math.max(0, e.clientY - y0);
-    d.style.translate = `0 ${dy}px`;
+    panel.style.translate = `0 ${dy}px`;
   });
   const end = () => {
     if (y0 == null) return;
     const fast = dy / Math.max(1, performance.now() - t0) > 0.5;
     y0 = null;
     d.classList.remove('dragging');
-    d.style.translate = '';
+    panel.style.translate = '';
     if (dy > 60 || (fast && dy > 20)) d.close();
   };
   head.addEventListener('pointerup', end);
