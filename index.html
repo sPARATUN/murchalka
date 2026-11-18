@@ -222,8 +222,8 @@
 
 <!-- ============ ЛИСТЫ ============ -->
 <dialog id="dlg-aa" class="sheet see-through" closedby="any" aria-labelledby="aa-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
-  <h2 id="aa-title" class="sheet-title">Как читать удобнее</h2>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div><button type="button" class="icon-btn sheet-x" data-close aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+  <h2 id="aa-title" tabindex="-1" autofocus class="sheet-title">Как читать удобнее</h2>
   <div class="slide-row">
     <label class="slide-label" for="bright">Яркость <output id="bright-val">100%</output></label>
     <div class="slide">
@@ -293,8 +293,8 @@
 </dialog>
 
 <dialog id="dlg-toc" class="sheet tall" closedby="any" aria-labelledby="toc-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
-  <h2 id="toc-title" class="visually-hidden">Оглавление и закладки</h2>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div><button type="button" class="icon-btn sheet-x" data-close aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+  <h2 id="toc-title" tabindex="-1" autofocus class="visually-hidden">Оглавление и закладки</h2>
   <div class="tabs">
     <button type="button" id="tab-toc" aria-pressed="true">Оглавление</button>
     <button type="button" id="tab-marks" aria-pressed="false">Закладки <span id="marks-count"></span></button>
@@ -304,15 +304,15 @@
 </dialog>
 
 <dialog id="dlg-note" class="sheet" closedby="any" aria-labelledby="note-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
-  <h2 id="note-title" class="sheet-title">Примечание</h2>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div><button type="button" class="icon-btn sheet-x" data-close aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+  <h2 id="note-title" tabindex="-1" autofocus class="sheet-title">Примечание</h2>
   <div id="note-body" class="note-body book"></div>
   <form method="dialog"><button class="btn wide" value="ok">Понятно</button></form>
 </dialog>
 
 <dialog id="dlg-book" class="sheet" closedby="any" aria-labelledby="bk-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
-  <h2 id="bk-title" class="sheet-title"></h2>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div><button type="button" class="icon-btn sheet-x" data-close aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+  <h2 id="bk-title" tabindex="-1" autofocus class="sheet-title"></h2>
   <p id="bk-info" class="sheet-sub"></p>
   <div class="actions">
     <button type="button" class="btn wide" id="bk-read"><svg aria-hidden="true"><use href="#i-book"/></svg>Читать</button>
@@ -321,7 +321,7 @@
 </dialog>
 
 <dialog id="dlg-confirm" class="sheet" aria-labelledby="cf-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div></div>
   <h2 id="cf-title" class="sheet-title"></h2>
   <p id="cf-text" class="sheet-sub"></p>
   <form method="dialog" class="actions row">
@@ -331,8 +331,8 @@
 </dialog>
 
 <dialog id="dlg-add" class="sheet" closedby="any" aria-labelledby="add-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
-  <h2 id="add-title" class="sheet-title">Как добавить книжку</h2>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div><button type="button" class="icon-btn sheet-x" data-close aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+  <h2 id="add-title" tabindex="-1" autofocus class="sheet-title">Как добавить книжку</h2>
   <ol class="steps">
     <li><span class="step-n">1</span><span><b>Скачай файл</b> книги где угодно: в Safari, Telegram, почте. Подойдут <b>EPUB, FB2, FB2.ZIP, TXT</b>.</span></li>
     <li><span class="step-n">2</span><span>Нажми кнопку ниже — откроются <b>«Файлы»</b>.</span></li>
@@ -343,8 +343,8 @@
 </dialog>
 
 <dialog id="dlg-app" class="sheet" closedby="any" aria-labelledby="app-title">
-  <div class="sheet-grip" aria-hidden="true"></div>
-  <h2 id="app-title" class="sheet-title">Настройки Мурчалки</h2>
+  <div class="sheet-head"><div class="sheet-grip" aria-hidden="true"></div><button type="button" class="icon-btn sheet-x" data-close aria-label="Закрыть"><svg><use href="#i-close"/></svg></button></div>
+  <h2 id="app-title" tabindex="-1" autofocus class="sheet-title">Настройки Мурчалки</h2>
   <div class="set-row col">
     <span class="set-label">Тема</span>
     <div class="themes" data-set="theme">

@@ -1,12 +1,13 @@
 // Мурчалка — работает без интернета: отдаём из кэша, обновляем в фоне.
-const V = 'murchalka-v2';
+const V = 'murchalka-v6';
 const SHELL = [
   './', 'index.html', 'styles.css', 'app.js', 'db.js', 'parsers.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png',
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' — берём свежие файлы мимо HTTP-кэша, чтобы новая версия не собралась из старых кусков
+  e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {

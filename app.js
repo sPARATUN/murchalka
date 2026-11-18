@@ -134,36 +134,48 @@ function toast(msg) {
   toastT = setTimeout(() => { try { t.hidePopover(); } catch { /* ничего */ } }, 2800);
 }
 
+// Листы закрываются тремя способами, и ни один не зависит от поддержки браузером:
+// крестик в шапке, тап мимо листа, свайп вниз за шапку.
 function setupSheet(d) {
   const outside = (e, r) => e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-  if (d.getAttribute('closedby') === 'any' && !('closedBy' in HTMLDialogElement.prototype)) {
-    // Safari пока не знает closedby — закрываем по тапу вне листа сами
-    let pressedOutside = false;
-    d.addEventListener('pointerdown', e => { pressedOutside = outside(e, d.getBoundingClientRect()); });
-    d.addEventListener('pointerup', e => { if (pressedOutside && outside(e, d.getBoundingClientRect())) d.close(); pressedOutside = false; });
-  }
+  d.addEventListener('click', e => { if (e.target.closest?.('[data-close]')) d.close(); });
   if (d.getAttribute('closedby') !== 'any') return;
-  // смахнуть лист вниз за верхнюю часть
-  let y0 = null, dy = 0;
-  d.addEventListener('pointerdown', e => {
-    const r = d.getBoundingClientRect();
-    if (outside(e, r) || e.clientY - r.top > 54) return;
-    y0 = e.clientY; dy = 0; d.classList.add('dragging');
-    d.setPointerCapture(e.pointerId);
+
+  // тап мимо листа (Safari не знает closedby, поэтому делаем сами и везде)
+  let pressedOutside = false;
+  d.addEventListener('pointerdown', e => { pressedOutside = e.target === d && outside(e, d.getBoundingClientRect()); });
+  d.addEventListener('pointerup', e => {
+    if (pressedOutside && outside(e, d.getBoundingClientRect())) d.close();
+    pressedOutside = false;
   });
-  d.addEventListener('pointermove', e => {
+  d.addEventListener('click', e => { if (e.target === d && d.open && outside(e, d.getBoundingClientRect())) d.close(); });
+
+  // свайп вниз за шапку (у шапки touch-action: none, поэтому прокрутка его не перехватывает)
+  const head = d.querySelector('.sheet-head');
+  if (!head) return;
+  let y0 = null, dy = 0, t0 = 0;
+  head.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    y0 = e.clientY; dy = 0; t0 = performance.now();
+    d.classList.add('dragging');
+    try { head.setPointerCapture(e.pointerId); } catch { /* ничего */ }
+  });
+  head.addEventListener('pointermove', e => {
     if (y0 == null) return;
     dy = Math.max(0, e.clientY - y0);
     d.style.translate = `0 ${dy}px`;
   });
   const end = () => {
     if (y0 == null) return;
-    y0 = null; d.classList.remove('dragging');
+    const fast = dy / Math.max(1, performance.now() - t0) > 0.5;
+    y0 = null;
+    d.classList.remove('dragging');
     d.style.translate = '';
-    if (dy > 70) d.close();
+    if (dy > 60 || (fast && dy > 20)) d.close();
   };
-  d.addEventListener('pointerup', end);
-  d.addEventListener('pointercancel', end);
+  head.addEventListener('pointerup', end);
+  head.addEventListener('pointercancel', end);
+  head.addEventListener('lostpointercapture', end);
 }
 $$('dialog.sheet').forEach(setupSheet);
 
@@ -853,6 +865,7 @@ async function closeReader() {
     R.urls.forEach(u => URL.revokeObjectURL(u));
     R.urls = []; R.nodes = []; R.open = false; R.book = null;
     $('#r-backlink').hidden = true;
+    setTimeout(applyUpdate, 700); // если пока читала пришла новая версия — обновимся сейчас, на полке
   };
   if (cover && document.startViewTransition && motionOK()) {
     reader.style.viewTransitionName = 'book';
@@ -1223,6 +1236,22 @@ persistStorage();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(e => console.warn('sw', e));
+  // Пришла новая версия: перезагружаемся незаметно — когда приложение свёрнуто или открыта полка,
+  // и никогда посреди чтения. Место в книге сохранено, после перезагрузки откроется та же страница.
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    updateReady = true;
+    if (!R.open && !$('dialog[open]') && !importing) applyUpdate();
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') applyUpdate(); });
+}
+var updateReady = false;
+function applyUpdate() {
+  if (!updateReady || importing) return;
+  updateReady = false;
+  save(); flushSave();
+  setTimeout(() => location.reload(), 150);
 }
 
 (async () => {
