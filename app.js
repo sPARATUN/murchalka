@@ -303,7 +303,9 @@ async function renderLibrary({ added = [] } = {}) {
     const metaRow = el('span', 'hero-meta');
     metaRow.append(ring(pct), el('span', '', 'читала ' + ago(p?.ts || cur.openedAt)));
     body.append(el('span', 'hero-kicker', 'Читаю сейчас'), el('span', 'hero-title', cur.title), el('span', 'hero-author', cur.author || ''), metaRow, el('span', 'btn', 'Продолжить'));
-    btn.append(coverEl(cur, pct), body);
+    const grid = el('span', 'hero-grid');
+    grid.append(coverEl(cur, pct), body);
+    btn.append(grid);
     hero.append(btn);
   }
   hero.hidden = !cur;
@@ -395,13 +397,10 @@ async function runVT(update) {
   return vt;
 }
 
+// Полка обновляется сразу; новые карточки сами въезжают CSS-анимацией (.card.new).
+// View Transitions для сетки не используем: на iPhone они иногда мигают.
 async function withTransition(update) {
-  // карточки плавно разъезжаются
-  const name = () => $$('#grid .card').forEach(c => { c.style.viewTransitionName = 'c-' + c.dataset.id; });
-  if (document.startViewTransition && motionOK()) name();
-  const vt = await runVT(async () => { await update(); if (motionOK()) name(); });
-  const clear = () => $$('#grid .card').forEach(c => { c.style.viewTransitionName = ''; });
-  if (vt) vt.finished.finally(clear); else clear();
+  await update();
 }
 
 /* ===================== добавление книжек ===================== */
@@ -440,7 +439,7 @@ async function importFiles(files) {
       added.push(parsed.meta);
       if (await adoptProgress(parsed.meta)) parsed.meta.adopted = true;
     } catch (err) {
-      console.error(err);
+      console.warn(err);
       toast(err instanceof BookError ? err.message : `Не получилось открыть «${f.name}» 😿`);
       await sleep(1200);
     }
@@ -821,26 +820,21 @@ async function openBook(id, src, { instant = false } = {}) {
     save();
 
     R.src = src?.classList?.contains('hero') ? 'hero' : 'card';
-    const cover = !instant && src ? $('.cover', src) || src.closest('.card')?.querySelector('.cover') : null;
-    const done = () => {
-      library.inert = true;
-      document.documentElement.classList.add('reading');
-      pager.focus({ preventScroll: true });
-      maybeTips();
-    };
-    if (cover && document.startViewTransition && motionOK()) {
-      cover.style.viewTransitionName = 'book';
-      const vt = await runVT(() => {
-        cover.style.viewTransitionName = '';
-        reader.style.viewTransitionName = 'book';
-        reader.classList.remove('preparing');
-      });
-      const clear = () => { reader.style.viewTransitionName = ''; cover.style.viewTransitionName = ''; };
-      if (vt) vt.finished.finally(clear); else clear();
-    } else {
-      reader.classList.remove('preparing');
+    // Книга мягко поднимается навстречу (вместо перехода «обложка → книга», который на iOS мелькал).
+    // Обложка, с которой открыли, чуть кивает — отклик на касание.
+    reader.classList.remove('preparing');
+    if (!instant && motionOK()) {
+      const cover = src ? $('.cover', src) : null;
+      cover?.animate([{ scale: '1' }, { scale: '0.94' }, { scale: '1' }], { duration: 260, easing: 'ease-out' });
+      reader.animate([
+        { opacity: 0, transform: 'translateY(22px) scale(0.985)' },
+        { opacity: 1, transform: 'none' },
+      ], { duration: 340, easing: 'cubic-bezier(.22,.8,.24,1)' });
     }
-    done();
+    library.inert = true;
+    document.documentElement.classList.add('reading');
+    pager.focus({ preventScroll: true });
+    maybeTips();
   } catch (e) {
     console.error(e);
     toast('Книжка не открылась 😿');
@@ -872,19 +866,17 @@ async function closeReader() {
     $('#r-backlink').hidden = true;
     setTimeout(applyUpdate, 700); // если пока читала пришла новая версия — обновимся сейчас, на полке
   };
-  if (cover && document.startViewTransition && motionOK()) {
-    reader.style.viewTransitionName = 'book';
-    const vt = await runVT(() => {
-      reader.style.viewTransitionName = '';
-      cover.style.viewTransitionName = 'book';
-      finish();
-    });
-    const after = () => { reader.style.viewTransitionName = ''; cover.style.viewTransitionName = ''; cover.closest('button')?.focus({ preventScroll: true }); };
-    if (vt) vt.finished.finally(after); else after();
-  } else {
+  // книга мягко уходит вниз, полка уже обновлена под ней
+  if (motionOK()) {
+    const out = reader.animate([
+      { opacity: 1, transform: 'none' },
+      { opacity: 0, transform: 'translateY(26px) scale(0.985)' },
+    ], { duration: 240, easing: 'cubic-bezier(.4,0,.8,.4)', fill: 'forwards' });
+    await animDone(out, 400);
     finish();
-    cover?.closest('button')?.focus({ preventScroll: true });
-  }
+    out.cancel();
+  } else finish();
+  cover?.closest('button')?.focus({ preventScroll: true });
 }
 $('#r-close').addEventListener('click', () => { if (history.state?.reader) history.back(); else closeReader(); });
 addEventListener('popstate', () => {

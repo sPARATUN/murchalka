@@ -214,8 +214,9 @@ svg { flex: none; }
 
 /* --- «Читаю сейчас» --- */
 #hero { margin-block-end: 28px; }
+/* сама кнопка — обычный блок, а раскладка внутри на span: так одинаково во всех версиях Safari */
 .hero {
-  display: grid; grid-template-columns: 96px 1fr; gap: 16px; align-items: center;
+  display: block;
   inline-size: 100%; padding: 22px 16px 16px; border: 0;
   border-radius: 28px; text-align: start;
   background: linear-gradient(135deg, var(--accent-soft), var(--paper-2));
@@ -223,7 +224,8 @@ svg { flex: none; }
   transition: scale .25s var(--ease-spring);
 }
 .hero:active { scale: .98; }
-.hero .cover { inline-size: 96px; }
+.hero-grid { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; align-items: center; perspective: 800px; }
+.hero .cover { inline-size: 96px; block-size: 144px; padding: 0; }
 .hero-body { display: block; min-inline-size: 0; }
 .hero-body > * { display: block; }
 .hero-kicker { font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
@@ -242,12 +244,15 @@ html.reading { overflow: hidden; }
   display: grid; grid-template-columns: repeat(auto-fill, minmax(min(9.2rem, 42vw), 1fr));
   gap: 30px 16px;
 }
-.card { position: relative; display: flex; flex-direction: column; }
+.card { position: relative; display: block; min-inline-size: 0; }
 .card-open {
-  display: flex; flex-direction: column; gap: 6px; text-align: start;
+  display: block; inline-size: 100%; text-align: start;
   padding: 0; border: 0; background: none;
   transition: scale .25s var(--ease-spring);
 }
+.card-open > * { display: block; }
+.card-open > * + * { margin-block-start: 6px; }
+.card-open > .card-prog { display: flex; }
 .card-open:active { scale: .965; }
 .card-title { font-weight: 800; font-size: .98rem; line-height: 1.22; margin-block-start: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .card-author { color: var(--ink-2); font-size: .84rem; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
@@ -266,7 +271,10 @@ html.reading { overflow: hidden; }
 .cover {
   --h: 340;
   position: relative;
-  aspect-ratio: 2 / 3;
+  display: block;
+  inline-size: 100%;
+  height: 0;
+  padding-bottom: 150%; /* 2:3 через отступ — работает в любом Safari, в отличие от aspect-ratio внутри кнопки */
   border-radius: 14px 14px 16px 16px;
   box-shadow: var(--shadow);
   background: hsl(var(--h) 70% 86%);
@@ -730,9 +738,8 @@ dialog form > .btn { margin-block-start: 14px; }
 @media (prefers-reduced-motion: reduce) { .card.new .cover { animation: none; } }
 
 /* «Читаю сейчас»: обложка стоит в 3D со стопкой страниц, кольцо прогресса */
-.hero { overflow: visible; grid-template-columns: 104px 1fr; perspective: 800px; }
+.hero { overflow: visible; }
 .hero .cover {
-  inline-size: 96px;
   transform: rotateY(18deg) rotateZ(-2deg);
   transform-origin: 0 50%;
   transition: transform .6s var(--ease-spring);

@@ -17,28 +17,38 @@ export async function parseBook(file, onStep = () => {}) {
   onStep('Нюхаю файл');
   const id = await hashId(buf);
   let res;
-  if (u8[0] === 0x50 && u8[1] === 0x4b) {
+  // что внутри — смотрим по содержимому, а не по имени файла (сайты часто путают имена)
+  const head = decodeText(u8.subarray(0, 4096));
+  const isZip = (u8[0] === 0x50 && u8[1] === 0x4b) || findEocd(u8) >= 0;
+  if (u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46) {
+    throw new BookError('PDF — это картинки страниц, а не текст. Поищи эту книгу в EPUB или FB2 🐾');
+  } else if (/<FictionBook/i.test(head)) {
+    onStep('Листаю главы');
+    res = parseFb2(u8);
+  } else if (isZip) {
     const zip = openZip(u8);
-    if (zip.has('META-INF/container.xml')) { onStep('Листаю главы'); res = await parseEpub(zip); }
+    onStep('Листаю главы');
+    if (zip.has('META-INF/container.xml')) res = await parseEpub(zip);
     else {
       const fb = zip.names.find(n => /\.fb2$/i.test(n));
       const ep = zip.names.find(n => /\.epub$/i.test(n));
       const txt = zip.names.find(n => /\.txt$/i.test(n));
-      onStep('Листаю главы');
       if (fb) res = parseFb2(await zip.bytes(fb));
-      else if (ep) { const inner = openZip(await zip.bytes(ep)); res = await parseEpub(inner); }
+      else if (ep) res = await parseEpub(openZip(await zip.bytes(ep)));
       else if (txt) res = parseTxt(await zip.bytes(txt), txt);
       else throw new BookError('В архиве нет книжки — нужен EPUB, FB2 или TXT');
     }
-  } else if (u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46) {
-    throw new BookError('PDF — это картинки страниц, а не текст. Поищи эту книгу в EPUB или FB2 🐾');
+  } else if (/^\s*(<!doctype\s+html|<html|<head|<meta|<script)/i.test(head) || /<html[\s>]/i.test(head.slice(0, 1000))) {
+    throw new BookError('Это не книга, а страница сайта: сайт не отдал файл. Скачай ещё раз (лучше EPUB или FB2) или попробуй другой сайт 🐾');
   } else if (/\.(mobi|azw3?|djvu|docx?|rtf|cbz|cbr)$/.test(name)) {
     throw new BookError('Этот формат пока не умею. Скачай книгу в EPUB или FB2 🐾');
+  } else if (/\.(fb2|epub|zip)$/.test(name)) {
+    throw new BookError('Файл повреждён или скачался не полностью. Скачай книгу ещё раз 🐾');
   } else {
-    const head = latin1(u8.subarray(0, 2000));
+    const ctrl = (head.match(/[\u0000-\u0008\u000e-\u001f�]/g) || []).length;
+    if (ctrl > head.length * 0.02) throw new BookError('Файл не похож на книгу. Нужен EPUB, FB2 или TXT 🐾');
     onStep('Листаю главы');
-    if (/<FictionBook/i.test(head) || name.endsWith('.fb2')) res = parseFb2(u8);
-    else res = parseTxt(u8, file.name);
+    res = parseTxt(u8, file.name);
   }
   onStep('Раскладываю по полочкам');
   return finalize(res, id, file);
@@ -59,15 +69,24 @@ async function hashId(buf) {
 
 /* ---------- ZIP ---------- */
 
+function findEocd(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) return i;
+  }
+  return -1;
+}
+
 function openZip(u8) {
   const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
-  let eocd = -1;
-  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
-    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
-  }
+  const eocd = findEocd(u8);
   if (eocd < 0) throw new BookError('Файл повреждён — не открывается как архив');
   const count = dv.getUint16(eocd + 10, true);
+  const cdSize = dv.getUint32(eocd + 12, true);
   let p = dv.getUint32(eocd + 16, true);
+  // если перед архивом что-то приклеено (самораспаковка, мусор) — сдвигаем все смещения
+  const shift = eocd - cdSize - p;
+  if (shift > 0) p += shift;
   const entries = new Map();
   const dec = new TextDecoder();
   for (let k = 0; k < count && p + 46 <= u8.length; k++) {
@@ -77,7 +96,7 @@ function openZip(u8) {
     const nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
     const lho = dv.getUint32(p + 42, true);
     const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
-    entries.set(name, { method, csize, lho });
+    entries.set(name, { method, csize, lho: lho + (shift > 0 ? shift : 0) });
     p += 46 + nlen + elen + clen;
   }
   const lower = new Map([...entries.keys()].map(n => [n.toLowerCase(), n]));
@@ -540,17 +559,31 @@ function parseTxt(u8, fileName) {
   }
   const chapters = [];
   chunk(root, chapters);
-  let title = (fileName || 'Книжка').replace(/\.[^.]+$/, '').replace(/_/g, ' ');
-  let author = '';
-  const m = title.match(/^(.{2,60}?)\s+[-–—]\s+(.{2,})$/);
-  if (m) { author = m[1].trim(); title = m[2].trim(); }
+  const { title, author } = nameToTitle(fileName);
   return { title, author, lang: 'ru', format: 'TXT', chapters, toc, notesFrom: null, cover: '', loadRes: () => null };
+}
+
+// «Эриксон Эрик. Детство и общество - royallib.com.fb2.zip» → автор «Эриксон Эрик», название «Детство и общество»
+export function nameToTitle(fileName) {
+  let t = (fileName || 'Книжка').replace(/_/g, ' ');
+  for (let i = 0; i < 4; i++) t = t.replace(/\.(zip|fb2|epub|txt|html?|download|crdownload)$/i, '');
+  t = t.replace(/[\s.\-–—(\[]*(www\.)?[a-z0-9-]+\.(com|ru|net|org|me|info|club|biz|su|ws|to|cc|io)[)\]]*$/i, '').trim();
+  let author = '';
+  let m = t.match(/^(.{2,60}?)\s+[-–—]\s+(.{2,})$/);
+  if (m) { author = m[1].trim(); t = m[2].trim(); }
+  else if ((m = t.match(/^([А-ЯЁA-Z][\p{L}'-]+(?:\s+[А-ЯЁA-Z][\p{L}.'-]*){1,2})\.\s+(.{2,})$/u))) { author = m[1].trim(); t = m[2].trim(); }
+  return { title: t || 'Книжка', author };
 }
 
 /* ---------- сборка ---------- */
 
 async function finalize(res, id, file) {
   if (!res.chapters.length) throw new BookError('В книжке не нашлось текста 😿');
+  if (!res.title || res.title === 'Без названия') {
+    const n = nameToTitle(file.name);
+    res.title = n.title;
+    res.author = res.author || n.author;
+  }
   // оставляем только те id, на которые кто-то ссылается
   const targets = new Set(res.toc.map(t => t.g));
   for (const c of res.chapters) for (const a of c.querySelectorAll('a[data-link]')) targets.add(a.dataset.link);
